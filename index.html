@@ -136,6 +136,13 @@
   .ex-card .title{font-weight:700;font-size:14.5px;line-height:1.25;}
   .ex-card .meta{font-size:11.5px;color:var(--gris);margin-top:3px;letter-spacing:0.3px;text-transform:uppercase;}
   .ex-card .chev{color:var(--gris);font-size:16px;flex:none;}
+  .ex-card .fav-star{
+    flex:none;width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+    font-size:21px;line-height:1;color:#4a4b50;cursor:pointer;border-radius:10px;
+    transition:transform .1s ease;
+  }
+  .ex-card .fav-star:active{transform:scale(0.85);background:rgba(255,255,255,0.06);}
+  .ex-card .fav-star.active{color:#FFB020;}
 
   .empty-msg{color:var(--gris);text-align:center;padding:40px 20px;font-size:14px;}
 
@@ -211,6 +218,10 @@
   }
   .action-btn.share{background:var(--rojo);color:#fff;}
   .action-btn.share:active{background:var(--rojo-osc);}
+  .action-btn.fav{background:var(--negro2);border:1px solid var(--borde);color:var(--blanco);flex:0 0 auto;padding:14px 18px;}
+  .action-btn.fav .fav-star{font-size:18px;color:#4a4b50;}
+  .action-btn.fav.active{border-color:#FFB020;}
+  .action-btn.fav.active .fav-star{color:#FFB020;}
   .action-btn svg{width:17px;height:17px;}
 
   .toast{
@@ -248,6 +259,11 @@
         <div class="menu-btn" onclick="goTo('types')">
           <div class="icon"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="2"/></svg></div>
           <div class="txt"><div class="t1">Tipos de ejercicio</div><div class="t2">Filtra por categoría</div></div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-btn" onclick="goTo('favorites')">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5L14.6 9.2L20.8 9.9L16.2 14.1L17.5 20.3L12 17.1L6.5 20.3L7.8 14.1L3.2 9.9L9.4 9.2L12 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+          <div class="txt"><div class="t1">Favoritos</div><div class="t2">Tus ejercicios guardados</div></div>
           <div class="chev">›</div>
         </div>
         <div class="menu-btn" onclick="goTo('search')">
@@ -308,6 +324,17 @@
     </div>
     <div class="list-wrap">
       <div id="list-type-container"></div>
+    </div>
+  </div>
+
+  <!-- ============ PANTALLA: FAVORITOS ============ -->
+  <div id="screen-favorites" class="screen hidden">
+    <div class="topbar">
+      <button class="back-btn" onclick="goTo('home')">‹</button>
+      <h2>Favoritos</h2>
+    </div>
+    <div class="list-wrap">
+      <div id="favorites-container"></div>
     </div>
   </div>
 
@@ -625,6 +652,36 @@ let currentScreen = 'home';
 let lastListScreen = 'list-all'; // a dónde volver desde el detalle
 let currentTypeCat = null;
 
+/* ---------- Favoritos (persisten en el móvil) ---------- */
+function loadFavorites(){
+  try{
+    return new Set(JSON.parse(localStorage.getItem('ejfb_favoritos') || '[]'));
+  }catch(e){ return new Set(); }
+}
+function saveFavorites(){
+  try{ localStorage.setItem('ejfb_favoritos', JSON.stringify([...FAVORITES])); }catch(e){}
+}
+const FAVORITES = loadFavorites();
+function isFavorite(n){ return FAVORITES.has(n); }
+
+function toggleFavorite(n, evt){
+  if(evt){ evt.stopPropagation(); }
+  if(FAVORITES.has(n)){ FAVORITES.delete(n); } else { FAVORITES.add(n); }
+  saveFavorites();
+  const fav = FAVORITES.has(n);
+  document.querySelectorAll('.fav-star[data-ex="'+n+'"]').forEach(el=>{
+    el.classList.toggle('active', fav);
+    el.textContent = fav ? '★' : '☆';
+  });
+  const favBtn = document.getElementById('detail-fav-btn');
+  if(favBtn && favBtn.dataset.ex == n){
+    favBtn.classList.toggle('active', fav);
+    const lbl = favBtn.querySelector('.fav-label');
+    if(lbl) lbl.textContent = fav ? 'En favoritos' : 'Favorito';
+  }
+  if(currentScreen==='favorites'){ renderFavorites(); }
+}
+
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+id).classList.remove('hidden');
@@ -636,6 +693,7 @@ function goTo(id){
   if(id==='list-all'){ renderListAll(); showScreen('list-all'); }
   else if(id==='search'){ showScreen('search'); document.getElementById('search-input').focus(); }
   else if(id==='types'){ renderTypes(); showScreen('types'); }
+  else if(id==='favorites'){ renderFavorites(); showScreen('favorites'); }
   else if(id==='home'){ showScreen('home'); }
 }
 
@@ -651,6 +709,7 @@ function catBadgeShort(cat){ return CATS[cat] ? CATS[cat].short : cat; }
 function exCardHTML(ex){
   const bonusClass = ex.cat==='bonus' ? 'bonus' : '';
   const img = (typeof EX_IMAGES !== 'undefined' && EX_IMAGES[ex.n]) ? EX_IMAGES[ex.n] : '';
+  const fav = isFavorite(ex.n);
   return `<div class="ex-card ${bonusClass}" onclick="openDetail(${ex.n})">
     <div class="thumb">
       ${img ? `<img src="${img}" alt="Ejercicio ${ex.n}">` : ''}
@@ -660,8 +719,19 @@ function exCardHTML(ex){
       <div class="title">${ex.title}</div>
       <div class="meta">${catBadgeShort(ex.cat)} · ${ex.dif} · ${ex.tiempo}</div>
     </div>
+    <span class="fav-star ${fav?'active':''}" data-ex="${ex.n}" onclick="toggleFavorite(${ex.n}, event)">${fav?'★':'☆'}</span>
     <div class="chev">›</div>
   </div>`;
+}
+
+function renderFavorites(){
+  const cont = document.getElementById('favorites-container');
+  const items = EXERCISES.filter(e=>FAVORITES.has(e.n));
+  if(items.length===0){
+    cont.innerHTML = '<div class="empty-msg">Aún no tienes ejercicios favoritos.<br>Toca la ★ de cualquier ejercicio para guardarlo aquí.</div>';
+  } else {
+    cont.innerHTML = items.map(exCardHTML).join('');
+  }
 }
 
 /* ---------- Lista completa ---------- */
@@ -763,6 +833,10 @@ function openDetail(n){
     <div class="tip-block"><span class="star">★</span><span>${escapeHtml(ex.tip)}</span></div>
 
     <div class="detail-actions">
+      <button class="action-btn fav ${isFavorite(ex.n)?'active':''}" id="detail-fav-btn" data-ex="${ex.n}" onclick="toggleFavorite(${ex.n}, event)">
+        <span class="fav-star">${isFavorite(ex.n)?'★':'☆'}</span>
+        <span class="fav-label">${isFavorite(ex.n)?'En favoritos':'Favorito'}</span>
+      </button>
       <button class="action-btn share" onclick="shareExercise()">
         <svg viewBox="0 0 24 24" fill="none"><path d="M15 8L12 5L9 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 12V18C6 18.5523 6.44772 19 7 19H17C17.5523 19 18 18.5523 18 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Enviar ficha
