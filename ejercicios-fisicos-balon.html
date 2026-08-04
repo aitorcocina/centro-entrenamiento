@@ -697,6 +697,8 @@ function showScreen(id){
   document.getElementById('screen-'+id).classList.remove('hidden');
   window.scrollTo(0,0);
   currentScreen = id;
+  const credit = document.querySelector('.credit-footer');
+  if(credit) credit.style.display = (id==="home") ? "block" : "none";
 }
 
 function goTo(id){
