@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Planificar entrenamiento</title>
+<style>
+:root{
+  --rojo:#E31E24;
+  --rojo-osc:#B3151A;
+  --negro:#0E0F11;
+  --negro2:#17181B;
+  --negro3:#1F2024;
+  --gris:#8B8D93;
+  --gris-claro:#D8D9DC;
+  --blanco:#F5F5F6;
+  --verde:#1FA85C;
+  --azul:#2E6FEA;
+  --naranja:#FF8A00;
+  --amarillo:#FFD400;
+  --borde: rgba(255,255,255,0.08);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  background: radial-gradient(1200px 800px at 50% -10%, #1c1d21 0%, var(--negro) 55%);
+  color:var(--blanco);
+  font-family:'Segoe UI', Arial, Helvetica, sans-serif;
+  min-height:100vh;
+  padding-bottom:40px;
+}
+#app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+
+/* header */
+.topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 10px 16px;}
+.back-btn{width:36px;height:36px;border-radius:10px;background:var(--negro2);border:1px solid var(--borde);color:var(--blanco);display:flex;align-items:center;justify-content:center;text-decoration:none;flex:none;}
+.back-btn svg{width:18px;height:18px;}
+.topbar h1{font-size:16px;margin:0;text-transform:uppercase;letter-spacing:0.5px;font-weight:800;}
+.topbar h1 span{color:var(--rojo);}
+
+/* tabs */
+.tabbar{display:flex;gap:8px;padding:4px 16px 14px 16px;}
+.tab-btn{flex:1;padding:10px 8px;border-radius:12px;background:var(--negro2);border:1px solid var(--borde);color:var(--gris);font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;cursor:pointer;text-align:center;}
+.tab-btn.active{color:var(--blanco);border-color:rgba(227,30,36,0.5);background:linear-gradient(180deg, rgba(227,30,36,0.18), rgba(227,30,36,0.03));}
+
+.panel{display:none;padding:0 16px 20px 16px;}
+.panel.active{display:block;}
+
+.card{background:var(--negro2);border:1px solid var(--borde);border-radius:16px;padding:14px;margin-bottom:12px;}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--gris);margin:0 0 10px 0;font-weight:700;}
+
+/* form controls */
+label{display:block;font-size:11.5px;color:var(--gris);margin:0 0 4px 2px;text-transform:uppercase;letter-spacing:0.3px;}
+input[type=text], input[type=date], input[type=number], select, textarea{
+  width:100%;background:var(--negro3);border:1px solid var(--borde);color:var(--blanco);
+  border-radius:10px;padding:10px 11px;font-size:14px;font-family:inherit;margin-bottom:10px;
+}
+textarea{resize:vertical;min-height:50px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 14px;border-radius:10px;border:1px solid var(--borde);
+  background:var(--negro3);color:var(--blanco);font-size:13px;font-weight:700;
+  cursor:pointer;text-transform:uppercase;letter-spacing:0.3px;
+}
+.btn.primary{background:linear-gradient(180deg, var(--rojo), var(--rojo-osc));border-color:transparent;}
+.btn.ok{background:linear-gradient(180deg,#22b869,#178a4d);border-color:transparent;}
+.btn.ghost{background:transparent;}
+.btn.small{padding:7px 10px;font-size:11.5px;border-radius:8px;}
+.btn:active{transform:scale(0.97);}
+.btn:disabled{opacity:0.35;pointer-events:none;}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+
+/* SESSION LIST */
+.block-item{background:var(--negro3);border:1px solid var(--borde);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+.block-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.block-title{font-weight:800;font-size:14px;}
+.block-meta{font-size:11px;color:var(--gris);margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;}
+.block-desc{font-size:12.5px;color:var(--gris-claro);margin-top:6px;line-height:1.4;}
+.block-actions{display:flex;gap:6px;flex:none;}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px;}
+.tag.calent{background:rgba(46,111,234,0.18);color:var(--azul);}
+.tag.tecnico{background:rgba(31,168,92,0.18);color:var(--verde);}
+.tag.tactico{background:rgba(227,30,36,0.18);color:var(--rojo);}
+.tag.fisico{background:rgba(255,138,0,0.18);color:var(--naranja);}
+.tag.partido{background:rgba(255,212,0,0.18);color:var(--amarillo);}
+.total-time{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--gris-claro);margin-top:4px;}
+.total-time b{color:var(--blanco);font-size:17px;}
+.empty-msg{color:var(--gris);font-size:12.5px;text-align:center;padding:14px 0;}
+
+/* saved sessions */
+.saved-row{display:flex;align-items:center;gap:8px;background:var(--negro3);border:1px solid var(--borde);border-radius:10px;padding:8px 10px;margin-bottom:6px;}
+.saved-row .info{flex:1;}
+.saved-row .name{font-size:13px;font-weight:700;}
+.saved-row .date{font-size:11px;color:var(--gris);}
+
+/* BOARD */
+.board-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.tool-btn{
+  padding:8px 10px;border-radius:10px;border:1px solid var(--borde);background:var(--negro3);
+  color:var(--gris-claro);font-size:11px;font-weight:700;text-transform:uppercase;
+  display:flex;align-items:center;gap:5px;cursor:pointer;letter-spacing:0.2px;
+}
+.tool-btn .dot{width:10px;height:10px;border-radius:50%;flex:none;}
+.tool-btn.active{border-color:var(--rojo);color:var(--blanco);background:rgba(227,30,36,0.14);}
+
+.board-wrap{width:100%;display:flex;justify-content:center;margin-bottom:10px;}
+#pitch{width:100%;max-width:420px;height:auto;border-radius:14px;border:1px solid var(--borde);touch-action:none;background:#0c2e18;}
+
+.frames-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px 0;}
+.frame-chip{
+  flex:none;width:44px;height:44px;border-radius:10px;border:2px solid var(--borde);
+  background:var(--negro3);color:var(--gris);font-size:12px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;
+}
+.frame-chip.active{border-color:var(--rojo);color:var(--blanco);}
+.frame-chip .del{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:var(--rojo);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;}
+.frame-add{flex:none;width:44px;height:44px;border-radius:10px;border:2px dashed var(--borde);color:var(--gris);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;}
+
+.anim-controls{display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;}
+.anim-controls input[type=number]{width:64px;margin:0;padding:7px 8px;}
+.hint{font-size:11.5px;color:var(--gris);line-height:1.4;margin-top:6px;}
+
+.credit-footer{
+  position:fixed;left:0;right:0;bottom:0;
+  text-align:center;padding:9px 0 11px 0;
+  font-size:10.5px;color:rgba(255,255,255,0.28);letter-spacing:0.4px;
+  pointer-events:none;z-index:60;
+  background:linear-gradient(0deg, rgba(14,15,17,0.9) 30%, transparent);
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <a class="back-btn" href="index.html"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5L8 12L15 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <h1>PLANIFICAR <span>ENTRENAMIENTO</span></h1>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab-btn active" data-tab="sesion">Sesión</div>
+    <div class="tab-btn" data-tab="pizarra">Pizarra táctica</div>
+  </div>
+
+  <!-- ===================== PANEL SESIÓN ===================== -->
+  <div class="panel active" id="panel-sesion">
+
+    <div class="card">
+      <h2>Datos de la sesión</h2>
+      <label>Título</label>
+      <input type="text" id="ses-titulo" placeholder="Ej: Semana 12 - Sesión 2 (táctico ofensivo)">
+      <div class="row2">
+        <div><label>Fecha</label><input type="date" id="ses-fecha"></div>
+        <div><label>Duración prevista (min)</label><input type="number" id="ses-duracion" placeholder="90"></div>
+      </div>
+      <label>Objetivo de la sesión</label>
+      <textarea id="ses-objetivo" placeholder="Ej: Mejorar la salida de balón y el juego de posición en 4-3-3"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Añadir bloque / ejercicio</h2>
+      <label>Nombre del ejercicio</label>
+      <input type="text" id="blk-nombre" placeholder="Ej: Rondo 6x2 en espacio reducido">
+      <div class="row2">
+        <div>
+          <label>Tipo</label>
+          <select id="blk-tipo">
+            <option value="calent">Calentamiento</option>
+            <option value="tecnico">Técnico</option>
+            <option value="tactico">Táctico</option>
+            <option value="fisico">Físico</option>
+            <option value="partido">Partido / juego</option>
+          </select>
+        </div>
+        <div><label>Duración (min)</label><input type="number" id="blk-duracion" placeholder="15"></div>
+      </div>
+      <label>Descripción / consignas</label>
+      <textarea id="blk-desc" placeholder="Espacio, jugadores, variantes, puntos clave..."></textarea>
+      <button class="btn primary" style="width:100%" onclick="addBlock()">+ Añadir bloque</button>
+    </div>
+
+    <div class="card">
+      <h2>Bloques de la sesión</h2>
+      <div id="blocks-list"><div class="empty-msg">Todavía no has añadido ningún bloque.</div></div>
+      <div class="total-time">
+        <span>Duración total planificada</span>
+        <b id="total-min">0 min</b>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn ok" onclick="saveSession()">💾 Guardar sesión</button>
+      <button class="btn ghost" onclick="newSession()">🆕 Nueva sesión</button>
+      <button class="btn ghost" onclick="downloadSessionTxt()">⬇️ Descargar resumen (.txt)</button>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2>Sesiones guardadas</h2>
+      <div id="saved-list"><div class="empty-msg">No hay sesiones guardadas todavía.</div></div>
+    </div>
+  </div>
+
+  <!-- ===================== PANEL PIZARRA ===================== -->
+  <div class="panel" id="panel-pizarra">
+
+    <div class="card">
+      <div class="board-toolbar">
+        <div class="tool-btn active" data-mode="select">↖ Mover</div>
+        <div class="tool-btn" data-mode="add-red"><span class="dot" style="background:var(--rojo)"></span>Equipo</div>
+        <div class="tool-btn" data-mode="add-dark"><span class="dot" style="background:#eee;border:1px solid #999"></span>Rival</div>
+        <div class="tool-btn" data-mode="add-ball"><span class="dot" style="background:var(--amarillo)"></span>Balón</div>
+        <div class="tool-btn" data-mode="add-cone"><span class="dot" style="background:var(--naranja)"></span>Cono</div>
+        <div class="tool-btn" data-mode="arrow">↗ Flecha</div>
+        <div class="tool-btn" data-mode="arrow-dash">┄ Flecha discont.</div>
+      </div>
+      <div class="board-toolbar">
+        <div class="tool-btn" onclick="deleteSelected()">🗑 Eliminar seleccionado</div>
+        <div class="tool-btn" onclick="undoArrow()">↩ Deshacer flecha</div>
+        <div class="tool-btn" onclick="clearBoard()">✖ Limpiar todo</div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="pitch" width="400" height="600"></canvas>
+      </div>
+
+      <label>Fotogramas (posiciones guardadas para animar)</label>
+      <div class="frames-strip" id="frames-strip">
+        <div class="frame-add" onclick="addFrame()">+</div>
+      </div>
+
+      <div class="anim-controls">
+        <button class="btn small primary" onclick="playAnimation()">▶ Reproducir jugada</button>
+        <label style="margin:0;text-transform:none;">seg/tramo</label>
+        <input type="number" id="anim-speed" value="1.5" step="0.1" min="0.3">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn ok" onclick="exportImage()">🖼 Exportar imagen</button>
+        <button class="btn ghost" onclick="exportVideo()">🎬 Exportar vídeo</button>
+      </div>
+      <div class="hint">Toca un botón de la barra para elegir qué colocar y luego toca el campo. Arrastra cualquier ficha para moverla. Guarda un fotograma por cada posición de la jugada y pulsa «Reproducir» o «Exportar vídeo» para animarla.</div>
+    </div>
+  </div>
+
+  <div class="credit-footer">By Urtzi Martínez</div>
+</div>
+
+<script>
+/* ============ TABS ============ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============ SESIÓN ============ */
+let currentBlocks = [];
+const tipoLabel = {calent:'Calentamiento', tecnico:'Técnico', tactico:'Táctico', fisico:'Físico', partido:'Partido / juego'};
+
+function addBlock(){
+  const nombre = document.getElementById('blk-nombre').value.trim();
+  const tipo = document.getElementById('blk-tipo').value;
+  const duracion = parseInt(document.getElementById('blk-duracion').value) || 0;
+  const desc = document.getElementById('blk-desc').value.trim();
+  if(!nombre){ alert('Ponle un nombre al ejercicio.'); return; }
+  currentBlocks.push({id:Date.now(), nombre, tipo, duracion, desc});
+  document.getElementById('blk-nombre').value='';
+  document.getElementById('blk-duracion').value='';
+  document.getElementById('blk-desc').value='';
+  renderBlocks();
+}
+
+function removeBlock(id){
+  currentBlocks = currentBlocks.filter(b=>b.id!==id);
+  renderBlocks();
+}
+
+function moveBlock(id, dir){
+  const i = currentBlocks.findIndex(b=>b.id===id);
+  const j = i+dir;
+  if(j<0 || j>=currentBlocks.length) return;
+  [currentBlocks[i], currentBlocks[j]] = [currentBlocks[j], currentBlocks[i]];
+  renderBlocks();
+}
+
+function renderBlocks(){
+  const list = document.getElementById('blocks-list');
+  if(currentBlocks.length===0){
+    list.innerHTML = '<div class="empty-msg">Todavía no has añadido ningún bloque.</div>';
+  } else {
+    list.innerHTML = currentBlocks.map((b,i)=>`
+      <div class="block-item">
+        <div class="block-top">
+          <div>
+            <span class="tag ${b.tipo}">${tipoLabel[b.tipo]}</span>
+            <div class="block-title">${escapeHtml(b.nombre)}</div>
+            <div class="block-meta">${b.duracion} min</div>
+          </div>
+          <div class="block-actions">
+            <button class="btn small ghost" onclick="moveBlock(${b.id},-1)">↑</button>
+            <button class="btn small ghost" onclick="moveBlock(${b.id},1)">↓</button>
+            <button class="btn small ghost" onclick="removeBlock(${b.id})">✖</button>
+          </div>
+        </div>
+        ${b.desc? `<div class="block-desc">${escapeHtml(b.desc)}</div>`:''}
+      </div>
+    `).join('');
+  }
+  const total = currentBlocks.reduce((s,b)=>s+b.duracion,0);
+  document.getElementById('total-min').textContent = total+' min';
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function newSession(){
+  if(currentBlocks.length && !confirm('¿Empezar una sesión nueva? Se perderán los bloques no guardados.')) return;
+  currentSessionId = null;
+  document.getElementById('ses-titulo').value='';
+  document.getElementById('ses-fecha').value='';
+  document.getElementById('ses-duracion').value='';
+  document.getElementById('ses-objetivo').value='';
+  currentBlocks = [];
+  renderBlocks();
+}
+
+let currentSessionId = null;
+function saveSession(){
+  const titulo = document.getElementById('ses-titulo').value.trim() || 'Sesión sin título';
+  const fecha = document.getElementById('ses-fecha').value;
+  const duracion = document.getElementById('ses-duracion').value;
+  const objetivo = document.getElementById('ses-objetivo').value.trim();
+  let sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
+  const data = {id: currentSessionId || Date.now(), titulo, fecha, duracion, objetivo, blocks: currentBlocks};
+  if(currentSessionId){
+    sesiones = sesiones.map(s=> s.id===currentSessionId ? data : s);
+  } else {
+    currentSessionId = data.id;
+    sesiones.push(data);
+  }
+  localStorage.setItem('urtzi_sesiones', JSON.stringify(sesiones));
+  renderSavedSessions();
+  alert('Sesión guardada.');
+}
+
+function loadSession(id){
+  const sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
+  const s = sesiones.find(x=>x.id===id);
+  if(!s) return;
+  currentSessionId = s.id;
+  document.getElementById('ses-titulo').value = s.titulo||'';
+  document.getElementById('ses-fecha').value = s.fecha||'';
+  document.getElementById('ses-duracion').value = s.duracion||'';
+  document.getElementById('ses-objetivo').value = s.objetivo||'';
+  currentBlocks = s.blocks||[];
+  renderBlocks();
+  document.querySelector('.tab-btn[data-tab="sesion"]').click();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteSession(id){
+  if(!confirm('¿Eliminar esta sesión guardada?')) return;
+  let sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
+  sesiones = sesiones.filter(s=>s.id!==id);
+  localStorage.setItem('urtzi_sesiones', JSON.stringify(sesiones));
+  renderSavedSessions();
+}
+
+function renderSavedSessions(){
+  const sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
+  const el = document.getElementById('saved-list');
+  if(sesiones.length===0){
+    el.innerHTML = '<div class="empty-msg">No hay sesiones guardadas todavía.</div>';
+    return;
+  }
+  el.innerHTML = sesiones.slice().reverse().map(s=>`
+    <div class="saved-row">
+      <div class="info">
+        <div class="name">${escapeHtml(s.titulo)}</div>
+        <div class="date">${s.fecha||'sin fecha'} · ${(s.blocks||[]).reduce((a,b)=>a+(b.duracion||0),0)} min</div>
+      </div>
+      <button class="btn small ghost" onclick="loadSession(${s.id})">Abrir</button>
+      <button class="btn small ghost" onclick="deleteSession(${s.id})">✖</button>
+    </div>
+  `).join('');
+}
+
+function downloadSessionTxt(){
+  const titulo = document.getElementById('ses-titulo').value.trim() || 'Sesión sin título';
+  const fecha = document.getElementById('ses-fecha').value || 'sin fecha';
+  const duracion = document.getElementById('ses-duracion').value || '-';
+  const objetivo = document.getElementById('ses-objetivo').value.trim() || '-';
+  let txt = `${titulo}\nFecha: ${fecha}\nDuración prevista: ${duracion} min\nObjetivo: ${objetivo}\n\nBLOQUES:\n`;
+  currentBlocks.forEach((b,i)=>{
+    txt += `\n${i+1}. [${tipoLabel[b.tipo]}] ${b.nombre} (${b.duracion} min)\n`;
+    if(b.desc) txt += `   ${b.desc}\n`;
+  });
+  const total = currentBlocks.reduce((s,b)=>s+b.duracion,0);
+  txt += `\nTotal: ${total} min`;
+  const blob = new Blob([txt], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = titulo.replace(/[^a-z0-9]+/gi,'_')+'.txt';
+  a.click();
+}
+
+renderBlocks();
+renderSavedSessions();
+
+/* ============ PIZARRA TÁCTICA ============ */
+const canvas = document.getElementById('pitch');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let objects = [];   // {id,type,x,y,label}
+let arrows = [];     // {id,x1,y1,x2,y2,dashed}
+let frames = [];     // {objects:[...], arrows:[...]}
+let currentFrameIndex = -1;
+let mode = 'select';
+let selectedId = null;
+let draggingObj = null;
+let arrowStart = null;
+let arrowPreview = null;
+let redCount = 0, darkCount = 0;
+let playing = false;
+
+document.querySelectorAll('.tool-btn[data-mode]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tool-btn[data-mode]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    selectedId = null;
+    draw();
+  });
+});
+
+function uid(){ return 'o'+Math.random().toString(36).slice(2,9); }
+
+function addObjectAt(type,x,y){
+  let label = '';
+  if(type==='add-red'){ redCount++; label = String(redCount); }
+  if(type==='add-dark'){ darkCount++; label = String(darkCount); }
+  const obj = {id:uid(), type, x, y, label};
+  objects.push(obj);
+  selectedId = obj.id;
+}
+
+function hitTestObject(x,y){
+  for(let i=objects.length-1;i>=0;i--){
+    const o = objects[i];
+    const r = (o.type==='add-ball')?9:(o.type==='add-cone'?11:15);
+    if(Math.hypot(o.x-x,o.y-y) <= r+4) return o;
+  }
+  return null;
+}
+
+function getPointerPos(e){
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return {
+    x: (clientX - rect.left) * (W/rect.width),
+    y: (clientY - rect.top) * (H/rect.height)
+  };
+}
+
+canvas.addEventListener('pointerdown', e=>{
+  if(playing) return;
+  const p = getPointerPos(e);
+  if(mode==='select'){
+    const hit = hitTestObject(p.x,p.y);
+    if(hit){ selectedId = hit.id; draggingObj = hit; }
+    else selectedId = null;
+  } else if(mode==='add-red' || mode==='add-dark' || mode==='add-ball' || mode==='add-cone'){
+    addObjectAt(mode, p.x, p.y);
+    document.querySelector('.tool-btn[data-mode="select"]').click();
+    mode='select';
+  } else if(mode==='arrow' || mode==='arrow-dash'){
+    arrowStart = p;
+    arrowPreview = {x1:p.x,y1:p.y,x2:p.x,y2:p.y,dashed: mode==='arrow-dash'};
+  }
+  draw();
+});
+
+canvas.addEventListener('pointermove', e=>{
+  if(playing) return;
+  const p = getPointerPos(e);
+  if(draggingObj){
+    draggingObj.x = Math.max(10,Math.min(W-10,p.x));
+    draggingObj.y = Math.max(10,Math.min(H-10,p.y));
+    draw();
+  } else if(arrowStart){
+    arrowPreview.x2 = p.x; arrowPreview.y2 = p.y;
+    draw();
+  }
+});
+
+canvas.addEventListener('pointerup', e=>{
+  if(playing) return;
+  if(draggingObj){ draggingObj = null; }
+  if(arrowStart){
+    if(Math.hypot(arrowPreview.x2-arrowPreview.x1, arrowPreview.y2-arrowPreview.y1) > 8){
+      arrows.push({id:uid(), x1:arrowPreview.x1, y1:arrowPreview.y1, x2:arrowPreview.x2, y2:arrowPreview.y2, dashed:arrowPreview.dashed});
+    }
+    arrowStart = null; arrowPreview = null;
+    document.querySelector('.tool-btn[data-mode="select"]').click();
+    mode='select';
+  }
+  draw();
+});
+canvas.addEventListener('pointerleave', ()=>{ draggingObj=null; });
+
+function deleteSelected(){
+  if(!selectedId) return;
+  objects = objects.filter(o=>o.id!==selectedId);
+  selectedId = null;
+  draw();
+}
+function undoArrow(){
+  arrows.pop();
+  draw();
+}
+function clearBoard(){
+  if(!confirm('¿Borrar toda la pizarra (fichas y flechas)?')) return;
+  objects = []; arrows = []; selectedId=null; redCount=0; darkCount=0;
+  draw();
+}
+
+/* --- drawing --- */
+function drawPitch(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#0c2e18';
+  ctx.fillRect(0,0,W,H);
+  // stripes
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  for(let i=0;i<12;i++){ if(i%2===0) ctx.fillRect(0, i*(H/12), W, H/12); }
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth = 2;
+  const m = 12;
+  ctx.strokeRect(m,m,W-2*m,H-2*m);
+  // halfway line
+  ctx.beginPath(); ctx.moveTo(m,H/2); ctx.lineTo(W-m,H/2); ctx.stroke();
+  // center circle
+  ctx.beginPath(); ctx.arc(W/2,H/2,45,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2,H/2,2.5,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.75)'; ctx.fill();
+  // penalty areas (top & bottom)
+  const boxW = 220, boxH = 80;
+  ctx.strokeRect(W/2-boxW/2, m, boxW, boxH);
+  ctx.strokeRect(W/2-boxW/2, H-m-boxH, boxW, boxH);
+  const gW = 110, gH = 32;
+  ctx.strokeRect(W/2-gW/2, m, gW, gH);
+  ctx.strokeRect(W/2-gW/2, H-m-gH, gW, gH);
+  // penalty spots
+  ctx.beginPath(); ctx.arc(W/2, m+62, 2.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(W/2, H-m-62, 2.5,0,Math.PI*2); ctx.fill();
+}
+
+function drawArrowLine(x1,y1,x2,y2,dashed){
+  ctx.save();
+  ctx.strokeStyle = '#FFF7B0';
+  ctx.fillStyle = '#FFF7B0';
+  ctx.lineWidth = 3;
+  ctx.setLineDash(dashed ? [8,6] : []);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.setLineDash([]);
+  const ang = Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-14*Math.cos(ang-0.4), y2-14*Math.sin(ang-0.4));
+  ctx.lineTo(x2-14*Math.cos(ang+0.4), y2-14*Math.sin(ang+0.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawObject(o){
+  ctx.save();
+  if(o.type==='add-red' || o.type==='add-dark'){
+    const r = 15;
+    ctx.beginPath(); ctx.arc(o.x,o.y,r,0,Math.PI*2);
+    ctx.fillStyle = o.type==='add-red' ? '#E31E24' : '#F5F5F6';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = o.type==='add-red' ? '#7a0f12' : '#666';
+    ctx.stroke();
+    if(o.id===selectedId){ ctx.lineWidth=2; ctx.strokeStyle='#2E6FEA'; ctx.beginPath(); ctx.arc(o.x,o.y,r+4,0,Math.PI*2); ctx.stroke(); }
+    ctx.fillStyle = o.type==='add-red' ? '#fff' : '#111';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(o.label||'', o.x, o.y+1);
+  } else if(o.type==='add-ball'){
+    ctx.beginPath(); ctx.arc(o.x,o.y,9,0,Math.PI*2);
+    ctx.fillStyle = '#FFD400'; ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle='#8a6d00'; ctx.stroke();
+    if(o.id===selectedId){ ctx.strokeStyle='#2E6FEA'; ctx.beginPath(); ctx.arc(o.x,o.y,13,0,Math.PI*2); ctx.stroke(); }
+  } else if(o.type==='add-cone'){
+    ctx.beginPath();
+    ctx.moveTo(o.x, o.y-11);
+    ctx.lineTo(o.x+10, o.y+9);
+    ctx.lineTo(o.x-10, o.y+9);
+    ctx.closePath();
+    ctx.fillStyle='#FF8A00'; ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle='#9a4f00'; ctx.stroke();
+    if(o.id===selectedId){ ctx.strokeStyle='#2E6FEA'; ctx.beginPath(); ctx.arc(o.x,o.y,15,0,Math.PI*2); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
+function draw(){
+  drawPitch();
+  arrows.forEach(a=>drawArrowLine(a.x1,a.y1,a.x2,a.y2,a.dashed));
+  if(arrowPreview) drawArrowLine(arrowPreview.x1,arrowPreview.y1,arrowPreview.x2,arrowPreview.y2,arrowPreview.dashed);
+  objects.forEach(drawObject);
+}
+
+/* --- frames / keyframes --- */
+function cloneState(){
+  return {
+    objects: objects.map(o=>({...o})),
+    arrows: arrows.map(a=>({...a}))
+  };
+}
+
+function addFrame(){
+  frames.push(cloneState());
+  currentFrameIndex = frames.length-1;
+  renderFrames();
+}
+
+function loadFrame(i){
+  if(i<0 || i>=frames.length) return;
+  const f = frames[i];
+  objects = f.objects.map(o=>({...o}));
+  arrows = f.arrows.map(a=>({...a}));
+  currentFrameIndex = i;
+  selectedId = null;
+  renderFrames();
+  draw();
+}
+
+function updateFrame(i){
+  if(i<0 || i>=frames.length) return;
+  frames[i] = cloneState();
+  renderFrames();
+}
+
+function deleteFrame(i, ev){
+  ev.stopPropagation();
+  frames.splice(i,1);
+  if(currentFrameIndex>=frames.length) currentFrameIndex = frames.length-1;
+  renderFrames();
+}
+
+function renderFrames(){
+  const strip = document.getElementById('frames-strip');
+  strip.innerHTML = '';
+  frames.forEach((f,i)=>{
+    const chip = document.createElement('div');
+    chip.className = 'frame-chip' + (i===currentFrameIndex?' active':'');
+    chip.textContent = (i+1);
+    chip.onclick = ()=>loadFrame(i);
+    const del = document.createElement('div');
+    del.className='del'; del.textContent='✖';
+    del.onclick = (ev)=>deleteFrame(i,ev);
+    chip.appendChild(del);
+    strip.appendChild(chip);
+  });
+  const addBtn = document.createElement('div');
+  addBtn.className='frame-add';
+  addBtn.textContent='+';
+  addBtn.onclick = ()=>{
+    if(currentFrameIndex>=0) updateFrame(currentFrameIndex);
+    addFrame();
+  };
+  strip.appendChild(addBtn);
+}
+
+/* --- animation --- */
+function easeInOut(t){ return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function playAnimation(onDone){
+  if(frames.length<2){ alert('Guarda al menos 2 fotogramas para animar la jugada.'); if(onDone) onDone(); return; }
+  if(currentFrameIndex>=0) updateFrame(currentFrameIndex);
+  playing = true;
+  const speed = Math.max(0.3, parseFloat(document.getElementById('anim-speed').value)||1.5);
+  let segIndex = 0;
+
+  function runSegment(){
+    if(segIndex >= frames.length-1){
+      playing = false;
+      loadFrame(frames.length-1);
+      if(onDone) onDone();
+      return;
+    }
+    const from = frames[segIndex], to = frames[segIndex+1];
+    const start = performance.now();
+    const durMs = speed*1000;
+
+    function step(now){
+      const t = Math.min(1, (now-start)/durMs);
+      const et = easeInOut(t);
+      const mergedObjects = from.objects.map(fo=>{
+        const toObj = to.objects.find(o=>o.id===fo.id);
+        if(!toObj) return {...fo};
+        return {...fo, x: fo.x+(toObj.x-fo.x)*et, y: fo.y+(toObj.y-fo.y)*et};
+      });
+      to.objects.forEach(toObj=>{
+        if(!from.objects.find(o=>o.id===toObj.id) && t>0.5) mergedObjects.push({...toObj});
+      });
+      objects = mergedObjects;
+      arrows = t<1 ? [] : to.arrows.map(a=>({...a}));
+      draw();
+      if(t<1){ requestAnimationFrame(step); }
+      else { segIndex++; runSegment(); }
+    }
+    requestAnimationFrame(step);
+  }
+  runSegment();
+}
+
+/* --- export --- */
+function exportImage(){
+  const link = document.createElement('a');
+  link.download = 'jugada.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function exportVideo(){
+  if(frames.length<2){ alert('Guarda al menos 2 fotogramas para exportar un vídeo animado.'); return; }
+  if(!canvas.captureStream){ alert('Tu navegador no soporta la exportación de vídeo. Usa la exportación de imagen.'); return; }
+  const stream = canvas.captureStream(30);
+  let recorder;
+  try{
+    recorder = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp9'});
+  }catch(e){
+    recorder = new MediaRecorder(stream);
+  }
+  const chunks = [];
+  recorder.ondataavailable = e=>{ if(e.data.size>0) chunks.push(e.data); };
+  recorder.onstop = ()=>{
+    const blob = new Blob(chunks, {type:'video/webm'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'jugada.webm';
+    a.click();
+  };
+  recorder.start();
+  loadFrame(0);
+  setTimeout(()=>{
+    playAnimation(()=>{
+      setTimeout(()=>recorder.stop(), 400);
+    });
+  }, 300);
+}
+
+draw();
+</script>
+</body>
+</html>
