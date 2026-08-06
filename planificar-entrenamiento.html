@@ -98,6 +98,17 @@ textarea{resize:vertical;min-height:50px;}
 .saved-row .name{font-size:13px;font-weight:700;}
 .saved-row .date{font-size:11px;color:var(--gris);}
 
+.player-check-row{
+  display:flex; align-items:center; gap:10px; background:var(--negro3); border:1px solid var(--borde);
+  border-radius:10px; padding:9px 11px; margin-bottom:6px; cursor:pointer;
+}
+.player-check-row input[type=checkbox]{width:18px;height:18px;margin:0;flex:none;accent-color:var(--rojo);}
+.player-check-num{
+  font-family:monospace;font-weight:800;font-size:12px;color:var(--rojo);
+  background:rgba(227,30,36,0.16);border-radius:6px;padding:2px 7px;flex:none;
+}
+.player-check-name{font-size:13.5px;font-weight:600;}
+
 /* BOARD */
 .board-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .tool-btn{
@@ -161,6 +172,16 @@ textarea{resize:vertical;min-height:50px;}
       </div>
       <label>Objetivo de la sesión</label>
       <textarea id="ses-objetivo" placeholder="Ej: Mejorar la salida de balón y el juego de posición en 4-3-3"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Convocatoria</h2>
+      <div id="convocatoria-status" class="empty-msg">Cargando jugadores de la Plantilla…</div>
+      <div id="convocatoria-list"></div>
+      <div class="btn-row" id="convocatoria-actions" style="display:none;">
+        <button class="btn small ghost" onclick="selectAllConvocados(true)">Seleccionar todos</button>
+        <button class="btn small ghost" onclick="selectAllConvocados(false)">Ninguno</button>
+      </div>
     </div>
 
     <div class="card">
@@ -333,7 +354,9 @@ function newSession(){
   document.getElementById('ses-duracion').value='';
   document.getElementById('ses-objetivo').value='';
   currentBlocks = [];
+  convocadosSet = new Set();
   renderBlocks();
+  renderConvocatoria();
 }
 
 /* ---- Nube (Supabase) ---- */
@@ -388,7 +411,8 @@ async function saveSession(){
   const fecha = document.getElementById('ses-fecha').value;
   const duracion = document.getElementById('ses-duracion').value;
   const objetivo = document.getElementById('ses-objetivo').value.trim();
-  const data = {id: currentSessionId || Date.now(), titulo, fecha, duracion, objetivo, blocks: currentBlocks};
+  const convocados = Array.from(convocadosSet);
+  const data = {id: currentSessionId || Date.now(), titulo, fecha, duracion, objetivo, blocks: currentBlocks, convocados};
   if(currentSessionId){
     sesionesCache = sesionesCache.map(s=> s.id===currentSessionId ? data : s);
   } else {
@@ -397,7 +421,7 @@ async function saveSession(){
   }
   const ok = await storeSet(SESSIONS_KEY, sesionesCache);
   renderSavedSessions();
-  if(ok) alert('Sesión guardada en la nube. Ya está disponible en el móvil y el portátil.');
+  if(ok) alert('Sesión guardada en la nube. Ya está disponible en el móvil, el portátil y en el calendario de Plantilla › Entrenos.');
 }
 
 function loadSession(id){
@@ -409,7 +433,9 @@ function loadSession(id){
   document.getElementById('ses-duracion').value = s.duracion||'';
   document.getElementById('ses-objetivo').value = s.objetivo||'';
   currentBlocks = s.blocks||[];
+  convocadosSet = new Set(s.convocados||[]);
   renderBlocks();
+  renderConvocatoria();
   document.querySelector('.tab-btn[data-tab="sesion"]').click();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -444,7 +470,13 @@ function downloadSessionTxt(){
   const fecha = document.getElementById('ses-fecha').value || 'sin fecha';
   const duracion = document.getElementById('ses-duracion').value || '-';
   const objetivo = document.getElementById('ses-objetivo').value.trim() || '-';
-  let txt = `${titulo}\nFecha: ${fecha}\nDuración prevista: ${duracion} min\nObjetivo: ${objetivo}\n\nBLOQUES:\n`;
+  let txt = `${titulo}\nFecha: ${fecha}\nDuración prevista: ${duracion} min\nObjetivo: ${objetivo}\n\n`;
+  const convocadosNames = Array.from(convocadosSet).map(id=>{
+    const p = plantillaPlayers.find(x=>x.id===id);
+    return p ? (p.number? `#${p.number} `:'') + p.name : null;
+  }).filter(Boolean);
+  if(convocadosNames.length) txt += `CONVOCADOS (${convocadosNames.length}):\n${convocadosNames.join(', ')}\n\n`;
+  txt += `BLOQUES:\n`;
   currentBlocks.forEach((b,i)=>{
     txt += `\n${i+1}. [${tipoLabel[b.tipo]}] ${b.nombre} (${b.duracion} min)\n`;
     if(b.desc) txt += `   ${b.desc}\n`;
@@ -459,7 +491,65 @@ function downloadSessionTxt(){
 }
 
 renderBlocks();
-loadSesiones();
+
+/* ---- Convocatoria (jugadores de Plantilla) ---- */
+let plantillaPlayers = [];
+let convocadosSet = new Set();
+
+async function loadPlantillaPlayers(){
+  plantillaPlayers = (await storeGet('players')) || [];
+  const status = document.getElementById('convocatoria-status');
+  const actions = document.getElementById('convocatoria-actions');
+  if(plantillaPlayers.length===0){
+    status.style.display='block';
+    status.textContent = 'No hay jugadores todavía en Plantilla. Añádelos allí y aparecerán aquí automáticamente.';
+    actions.style.display='none';
+    document.getElementById('convocatoria-list').innerHTML='';
+    return;
+  }
+  status.style.display='none';
+  actions.style.display='flex';
+  renderConvocatoria();
+}
+
+function renderConvocatoria(){
+  const list = document.getElementById('convocatoria-list');
+  list.innerHTML = plantillaPlayers.map(p=>`
+    <label class="player-check-row">
+      <input type="checkbox" data-id="${p.id}" ${convocadosSet.has(p.id)?'checked':''} onchange="toggleConvocado('${p.id}', this.checked)">
+      ${p.number? `<span class="player-check-num">${escapeHtml(p.number)}</span>`:''}
+      <span class="player-check-name">${escapeHtml(p.name)}</span>
+    </label>
+  `).join('');
+}
+
+function toggleConvocado(id, checked){
+  if(checked) convocadosSet.add(id);
+  else convocadosSet.delete(id);
+}
+
+function selectAllConvocados(all){
+  convocadosSet = all ? new Set(plantillaPlayers.map(p=>p.id)) : new Set();
+  renderConvocatoria();
+}
+
+/* ---- Abrir sesión o fecha desde el calendario de Plantilla ---- */
+function applyUrlParams(){
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session');
+  const fecha = params.get('fecha');
+  if(sessionId){
+    loadSession(Number(sessionId));
+  } else if(fecha){
+    document.getElementById('ses-fecha').value = fecha;
+  }
+}
+
+(async function init(){
+  await loadSesiones();
+  await loadPlantillaPlayers();
+  applyUrlParams();
+})();
 
 /* ============ PIZARRA TÁCTICA ============ */
 const canvas = document.getElementById('pitch');
