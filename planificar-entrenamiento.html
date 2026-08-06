@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Planificar entrenamiento</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
   --rojo:#E31E24;
@@ -87,6 +88,9 @@ textarea{resize:vertical;min-height:50px;}
 .total-time{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--gris-claro);margin-top:4px;}
 .total-time b{color:var(--blanco);font-size:17px;}
 .empty-msg{color:var(--gris);font-size:12.5px;text-align:center;padding:14px 0;}
+.cloud-status{font-size:10.5px;color:var(--gris);text-align:center;margin:-2px 0 10px 0;letter-spacing:0.3px;}
+.cloud-status.ok{color:var(--verde);}
+.cloud-status.err{color:var(--rojo);}
 
 /* saved sessions */
 .saved-row{display:flex;align-items:center;gap:8px;background:var(--negro3);border:1px solid var(--borde);border-radius:10px;padding:8px 10px;margin-bottom:6px;}
@@ -137,6 +141,7 @@ textarea{resize:vertical;min-height:50px;}
     <a class="back-btn" href="index.html"><svg viewBox="0 0 24 24" fill="none"><path d="M15 5L8 12L15 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     <h1>PLANIFICAR <span>ENTRENAMIENTO</span></h1>
   </div>
+  <div class="cloud-status" id="cloud-status">Conectando con la nube…</div>
 
   <div class="tabbar">
     <div class="tab-btn active" data-tab="sesion">Sesión</div>
@@ -331,28 +336,72 @@ function newSession(){
   renderBlocks();
 }
 
+/* ---- Nube (Supabase) ---- */
+const SUPABASE_URL = 'https://bzjzedwbahgitunoksps.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_GwXGrJorusdd94VeHBH4Lg_C657Knj5';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SESSIONS_KEY = 'training-sessions';
+
+function setCloudStatus(text, cls){
+  const el = document.getElementById('cloud-status');
+  el.textContent = text;
+  el.className = 'cloud-status' + (cls? ' '+cls : '');
+}
+
+async function storeSet(key, value){
+  try{
+    const { error } = await sb.from('team_data').upsert({ key, value, updated_at: new Date().toISOString() });
+    if(error){ console.error(error); setCloudStatus('No se pudo guardar en la nube. Revisa la conexión.', 'err'); return null; }
+    setCloudStatus('Sincronizado con la nube ✓', 'ok');
+    return true;
+  }catch(e){
+    console.error(e);
+    setCloudStatus('No se pudo guardar en la nube. Revisa la conexión.', 'err');
+    return null;
+  }
+}
+async function storeGet(key){
+  try{
+    const { data, error } = await sb.from('team_data').select('value').eq('key', key).maybeSingle();
+    if(error){ console.error(error); setCloudStatus('No se pudo conectar con la nube.', 'err'); return null; }
+    return data ? data.value : null;
+  }catch(e){
+    setCloudStatus('No se pudo conectar con la nube.', 'err');
+    return null;
+  }
+}
+
 let currentSessionId = null;
-function saveSession(){
+let sesionesCache = [];
+
+async function loadSesiones(){
+  setCloudStatus('Conectando con la nube…');
+  sesionesCache = (await storeGet(SESSIONS_KEY)) || [];
+  if(document.getElementById('cloud-status').className.indexOf('err')===-1){
+    setCloudStatus('Sincronizado con la nube ✓', 'ok');
+  }
+  renderSavedSessions();
+}
+
+async function saveSession(){
   const titulo = document.getElementById('ses-titulo').value.trim() || 'Sesión sin título';
   const fecha = document.getElementById('ses-fecha').value;
   const duracion = document.getElementById('ses-duracion').value;
   const objetivo = document.getElementById('ses-objetivo').value.trim();
-  let sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
   const data = {id: currentSessionId || Date.now(), titulo, fecha, duracion, objetivo, blocks: currentBlocks};
   if(currentSessionId){
-    sesiones = sesiones.map(s=> s.id===currentSessionId ? data : s);
+    sesionesCache = sesionesCache.map(s=> s.id===currentSessionId ? data : s);
   } else {
     currentSessionId = data.id;
-    sesiones.push(data);
+    sesionesCache.push(data);
   }
-  localStorage.setItem('urtzi_sesiones', JSON.stringify(sesiones));
+  const ok = await storeSet(SESSIONS_KEY, sesionesCache);
   renderSavedSessions();
-  alert('Sesión guardada.');
+  if(ok) alert('Sesión guardada en la nube. Ya está disponible en el móvil y el portátil.');
 }
 
 function loadSession(id){
-  const sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
-  const s = sesiones.find(x=>x.id===id);
+  const s = sesionesCache.find(x=>x.id===id);
   if(!s) return;
   currentSessionId = s.id;
   document.getElementById('ses-titulo').value = s.titulo||'';
@@ -365,22 +414,20 @@ function loadSession(id){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-function deleteSession(id){
-  if(!confirm('¿Eliminar esta sesión guardada?')) return;
-  let sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
-  sesiones = sesiones.filter(s=>s.id!==id);
-  localStorage.setItem('urtzi_sesiones', JSON.stringify(sesiones));
+async function deleteSession(id){
+  if(!confirm('¿Eliminar esta sesión guardada de la nube?')) return;
+  sesionesCache = sesionesCache.filter(s=>s.id!==id);
+  await storeSet(SESSIONS_KEY, sesionesCache);
   renderSavedSessions();
 }
 
 function renderSavedSessions(){
-  const sesiones = JSON.parse(localStorage.getItem('urtzi_sesiones')||'[]');
   const el = document.getElementById('saved-list');
-  if(sesiones.length===0){
+  if(sesionesCache.length===0){
     el.innerHTML = '<div class="empty-msg">No hay sesiones guardadas todavía.</div>';
     return;
   }
-  el.innerHTML = sesiones.slice().reverse().map(s=>`
+  el.innerHTML = sesionesCache.slice().reverse().map(s=>`
     <div class="saved-row">
       <div class="info">
         <div class="name">${escapeHtml(s.titulo)}</div>
@@ -412,7 +459,7 @@ function downloadSessionTxt(){
 }
 
 renderBlocks();
-renderSavedSessions();
+loadSesiones();
 
 /* ============ PIZARRA TÁCTICA ============ */
 const canvas = document.getElementById('pitch');
