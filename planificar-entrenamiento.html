@@ -61,21 +61,6 @@ body{
       "timeline"
       "comentario";
   }
-  .sidebar{
-    display:block;
-    column-count:2;
-    column-gap:14px;
-    padding:12px 12px !important;
-  }
-  .tool-group{
-    break-inside:avoid;
-    -webkit-column-break-inside:avoid;
-    margin-bottom:14px;
-    min-width:0;
-  }
-  .tool-grid{grid-template-columns:repeat(2, minmax(58px,1fr)); gap:5px;}
-  .tool-btn{padding:6px 3px;font-size:8.5px;}
-  .tool-btn svg{width:14px;height:14px;}
 }
 
 /* ---------- Fecha de sesión ---------- */
@@ -493,6 +478,21 @@ svg#pitch{
     padding:7px 14px;
     max-width:88%;
   }
+  .sidebar{
+    display:block !important;
+    column-count:2;
+    column-gap:14px;
+    padding:12px 12px !important;
+  }
+  .tool-group{
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    margin-bottom:14px;
+    min-width:0;
+  }
+  .tool-grid{grid-template-columns:repeat(2, minmax(58px,1fr)) !important; gap:5px;}
+  .tool-btn{padding:6px 3px;font-size:8.5px;}
+  .tool-btn svg{width:14px;height:14px;}
 }
 </style>
 </head>
