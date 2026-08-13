@@ -552,6 +552,29 @@ svg#pitch{
     </div>
 
     <div class="tool-group">
+      <div class="tool-group-label">Color de trazo</div>
+      <div class="color-row" id="colorRow">
+        <div class="swatch active" style="background:#ffffff" data-color="#ffffff"></div>
+        <div class="swatch" style="background:#ffb703" data-color="#ffb703"></div>
+        <div class="swatch" style="background:#e63946" data-color="#e63946"></div>
+        <div class="swatch" style="background:#4895ef" data-color="#4895ef"></div>
+        <div class="swatch" style="background:#2dd881" data-color="#2dd881"></div>
+      </div>
+    </div>
+
+    <div class="tool-group">
+      <div class="tool-group-label">Estilo de línea</div>
+      <div class="stroke-row" id="strokeRow">
+        <button class="stroke-btn active" data-stroke="solid">
+          <svg viewBox="0 0 24 10"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button class="stroke-btn" data-stroke="dashed">
+          <svg viewBox="0 0 24 10"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="tool-group">
       <div class="tool-group-label">Herramientas</div>
       <div class="tool-grid">
         <button class="tool-btn active" data-tool="select">
@@ -581,29 +604,6 @@ svg#pitch{
         <button class="tool-btn tool-full" data-tool="text">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M5 5h14M12 5v14"/></svg>
           Texto
-        </button>
-      </div>
-    </div>
-
-    <div class="tool-group">
-      <div class="tool-group-label">Color de trazo</div>
-      <div class="color-row" id="colorRow">
-        <div class="swatch active" style="background:#ffffff" data-color="#ffffff"></div>
-        <div class="swatch" style="background:#ffb703" data-color="#ffb703"></div>
-        <div class="swatch" style="background:#e63946" data-color="#e63946"></div>
-        <div class="swatch" style="background:#4895ef" data-color="#4895ef"></div>
-        <div class="swatch" style="background:#2dd881" data-color="#2dd881"></div>
-      </div>
-    </div>
-
-    <div class="tool-group">
-      <div class="tool-group-label">Estilo de línea</div>
-      <div class="stroke-row" id="strokeRow">
-        <button class="stroke-btn active" data-stroke="solid">
-          <svg viewBox="0 0 24 10"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <button class="stroke-btn" data-stroke="dashed">
-          <svg viewBox="0 0 24 10"><line x1="0" y1="5" x2="24" y2="5" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/></svg>
         </button>
       </div>
     </div>
