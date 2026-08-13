@@ -62,13 +62,17 @@ body{
       "comentario";
   }
   .sidebar{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
-    gap:16px 14px;
-    align-items:start;
-    padding:14px 12px !important;
+    display:block;
+    column-count:2;
+    column-gap:14px;
+    padding:12px 12px !important;
   }
-  .tool-group{min-width:0;}
+  .tool-group{
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    margin-bottom:14px;
+    min-width:0;
+  }
   .tool-grid{grid-template-columns:repeat(2, minmax(58px,1fr)); gap:5px;}
   .tool-btn{padding:6px 3px;font-size:8.5px;}
   .tool-btn svg{width:14px;height:14px;}
@@ -473,8 +477,8 @@ svg#pitch{
   .brand small{display:none;}
   .topbar{
     flex-wrap:wrap;
-    row-gap:10px;
-    padding:12px 12px;
+    row-gap:6px;
+    padding:10px 12px;
   }
   .session-date{width:100%;order:2;}
   .topbar-controls{width:100%;order:3;margin-left:0;justify-content:flex-start;}
