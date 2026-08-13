@@ -238,6 +238,7 @@ body{
   overflow-y:auto;
 }
 .tool-group{display:flex;flex-direction:column;gap:8px;}
+.sidebar-col{display:contents;}
 .tool-group-label{
   font-family:'JetBrains Mono',monospace;
   font-size:10px;
@@ -479,15 +480,20 @@ svg#pitch{
     max-width:88%;
   }
   .sidebar{
-    display:block !important;
-    column-count:2;
-    column-gap:14px;
+    display:flex !important;
+    flex-direction:row !important;
+    align-items:flex-start;
+    gap:14px;
     padding:12px 12px !important;
   }
+  .sidebar-col{
+    display:flex !important;
+    flex-direction:column;
+    gap:14px;
+    flex:1 1 0;
+    min-width:0;
+  }
   .tool-group{
-    break-inside:avoid;
-    -webkit-column-break-inside:avoid;
-    margin-bottom:14px;
     min-width:0;
   }
   .tool-grid{grid-template-columns:repeat(2, minmax(58px,1fr)) !important; gap:5px;}
@@ -531,6 +537,7 @@ svg#pitch{
   <!-- SIDEBAR -->
   <div class="sidebar">
 
+    <div class="sidebar-col">
     <div class="tool-group">
       <div class="tool-group-label">Jugadores</div>
       <div class="tool-grid">
@@ -573,7 +580,9 @@ svg#pitch{
         </button>
       </div>
     </div>
+    </div>
 
+    <div class="sidebar-col">
     <div class="tool-group">
       <div class="tool-group-label">Herramientas</div>
       <div class="tool-grid">
@@ -606,6 +615,7 @@ svg#pitch{
           Texto
         </button>
       </div>
+    </div>
     </div>
 
   </div>
