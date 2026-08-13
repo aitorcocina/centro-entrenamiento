@@ -61,8 +61,11 @@ body{
       "timeline"
       "comentario";
   }
-  .sidebar{flex-direction:row !important;overflow-x:auto;overflow-y:hidden;padding:10px !important;}
+  .sidebar{flex-direction:row !important;overflow-x:auto;overflow-y:hidden;padding:10px !important;align-items:flex-start;}
   .tool-group{min-width:max-content;}
+  .tool-grid{grid-template-columns:repeat(2, minmax(58px,1fr)); gap:5px;}
+  .tool-btn{padding:6px 3px;font-size:8.5px;}
+  .tool-btn svg{width:14px;height:14px;}
 }
 
 /* ---------- Fecha de sesión ---------- */
@@ -460,8 +463,16 @@ svg#pitch{
 
 @media (max-width:860px){
   .brand small{display:none;}
-  .topbar{padding:0 10px;gap:8px;}
+  .topbar{
+    flex-wrap:wrap;
+    row-gap:10px;
+    padding:12px 12px;
+  }
+  .session-date{width:100%;order:2;}
+  .topbar-controls{width:100%;order:3;margin-left:0;justify-content:flex-start;}
   .select-chip{font-size:11px;padding:7px 8px;}
+  .canvas-wrap{padding-top:24px;}
+  .bench-wrap{margin-top:14px;}
 }
 </style>
 </head>
