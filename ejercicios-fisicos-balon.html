@@ -6,6 +6,8 @@
 <title>Ejercicios Físicos con Balón</title>
 <link rel="icon" type="image/png" id="fav-icon-link">
 <link rel="apple-touch-icon" id="apple-icon-link">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --rojo:#E31E24;
@@ -163,6 +165,8 @@
 
   /* ---------- Ficha detalle ---------- */
   .detail-wrap{padding:16px 16px 40px 16px;}
+  .ficha-capture-box{background:var(--negro2);border:1px solid var(--borde);border-radius:18px;padding:18px;margin-bottom:20px;}
+  .ficha-capture-brand{font-size:10.5px;font-weight:800;letter-spacing:1.2px;color:var(--rojo);text-transform:uppercase;margin-bottom:12px;}
   .detail-badge-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
   .badge-pill{
     font-size:11px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;
@@ -808,6 +812,7 @@ function openTypeList(catKey){
    DETALLE DE FICHA
    ================================================================== */
 let currentExercise = null;
+let _fichaCache = { n:null, canvasPromise:null }; // pre-renderizado de la ficha para que "Enviar" sea instantáneo
 
 function openDetail(n){
   const ex = EXERCISES.find(e=>e.n===n);
@@ -824,58 +829,163 @@ function openDetail(n){
   const imgHtml = imgSrc ? `<div class="detail-image" onclick="openLightbox('${imgSrc.replace(/'/g,"\\'")}')"><img src="${imgSrc}" alt="Esquema del ejercicio ${ex.n}"></div>` : '';
 
   const html = `
-    <div class="detail-badge-row">
-      <span class="badge-pill ${badgeClass}">${badgeLabel}</span>
-      <span class="badge-pill" style="background:transparent;border:1px solid var(--borde);color:var(--gris-claro);">${CATS[ex.cat].name}</span>
+    <div id="ficha-capture" class="ficha-capture-box">
+      <div class="ficha-capture-brand">⚽ ${escapeHtml(FICHA_APP_TITLE)}</div>
+      <div class="detail-badge-row">
+        <span class="badge-pill ${badgeClass}">${badgeLabel}</span>
+        <span class="badge-pill" style="background:transparent;border:1px solid var(--borde);color:var(--gris-claro);">${CATS[ex.cat].name}</span>
+      </div>
+      <div class="detail-title">${ex.title}</div>
+
+      ${imgHtml}
+
+      <div class="stat-grid">
+        <div class="stat-box"><div class="lab">Dificultad</div><div class="val">${ex.dif}</div></div>
+        <div class="stat-box"><div class="lab">Tiempo</div><div class="val">${ex.tiempo}</div></div>
+        <div class="stat-box"><div class="lab">Jugadores</div><div class="val">${ex.jugadores}</div></div>
+        <div class="stat-box"><div class="lab">Material</div><div class="val">${ex.material}</div></div>
+        <div class="stat-box wide"><div class="lab">Terreno</div><div class="val">${ex.terreno}</div></div>
+      </div>
+
+      <div class="desc-block">${escapeHtml(ex.desc)}</div>
+
+      <div class="tip-block"><span class="star">★</span><span>${escapeHtml(ex.tip)}</span></div>
     </div>
-    <div class="detail-title">${ex.title}</div>
-
-    ${imgHtml}
-
-    <div class="stat-grid">
-      <div class="stat-box"><div class="lab">Dificultad</div><div class="val">${ex.dif}</div></div>
-      <div class="stat-box"><div class="lab">Tiempo</div><div class="val">${ex.tiempo}</div></div>
-      <div class="stat-box"><div class="lab">Jugadores</div><div class="val">${ex.jugadores}</div></div>
-      <div class="stat-box"><div class="lab">Material</div><div class="val">${ex.material}</div></div>
-      <div class="stat-box wide"><div class="lab">Terreno</div><div class="val">${ex.terreno}</div></div>
-    </div>
-
-    <div class="desc-block">${escapeHtml(ex.desc)}</div>
-
-    <div class="tip-block"><span class="star">★</span><span>${escapeHtml(ex.tip)}</span></div>
 
     <div class="detail-actions">
       <button class="action-btn fav ${isFavorite(ex.n)?'active':''}" id="detail-fav-btn" data-ex="${ex.n}" onclick="toggleFavorite(${ex.n}, event)">
         <span class="fav-star">${isFavorite(ex.n)?'★':'☆'}</span>
         <span class="fav-label">${isFavorite(ex.n)?'En favoritos':'Favorito'}</span>
       </button>
-      <button class="action-btn share" onclick="shareExercise()">
+      <button class="action-btn share" id="detail-share-btn" onclick="shareExercise()">
         <svg viewBox="0 0 24 24" fill="none"><path d="M15 8L12 5L9 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5V15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6 12V18C6 18.5523 6.44772 19 7 19H17C17.5523 19 18 18.5523 18 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Enviar ficha
+        <span id="detail-share-label">Enviar ficha</span>
       </button>
     </div>
   `;
   document.getElementById('detail-container').innerHTML = html;
   showScreen('detail');
+
+  /* Prepara la captura de la ficha en segundo plano nada más abrirla, para que al
+     tocar "Enviar" el navegador pueda abrir el panel de compartir sin apenas espera
+     (algunos móviles cancelan el compartir si tarda demasiado en reaccionar al toque). */
+  _fichaCache = { n: ex.n, canvasPromise: null };
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      if(_fichaCache.n !== ex.n) return;
+      _fichaCache.canvasPromise = captureFichaCanvas().catch(()=>null);
+    });
+  });
 }
+
+const FICHA_APP_TITLE = 'Ejercicios Físicos con Balón';
 
 function buildShareText(ex){
   return `⚽ EJERCICIOS FÍSICOS CON BALÓN\n\n${ex.cat==='bonus' ? 'BONUS' : 'EJERCICIO '+ex.n} — ${ex.title}\n\n📋 ${CATS[ex.cat].name}\nDificultad: ${ex.dif}  ·  Tiempo: ${ex.tiempo}\nMaterial: ${ex.material}\nTerreno: ${ex.terreno}  ·  Jugadores: ${ex.jugadores}\n\n${ex.desc}\n\n★ ${ex.tip}`;
 }
 
-function shareExerciseImageNote(){ /* reservado */ }
+/* Captura la ficha tal cual se ve en pantalla (imagen + datos) como canvas,
+   reutilizable tanto para el PDF como para la imagen de respaldo al compartir. */
+async function captureFichaCanvas(){
+  const node = document.getElementById('ficha-capture');
+  if(!node) throw new Error('No hay ficha para capturar');
+  return await html2canvas(node, { scale:2, backgroundColor:'#0E0F11', useCORS:true });
+}
+function pdfBlobFromCanvas(canvas){
+  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const { jsPDF } = window.jspdf;
+  const margin = 10;
+  const pageWidth = 210; /* A4 mm */
+  const imgWidthMM = pageWidth - margin*2;
+  const imgHeightMM = imgWidthMM * canvas.height / canvas.width;
+  const pageHeight = imgHeightMM + margin*2;
+  const doc = new jsPDF({ unit:'mm', format:[pageWidth, pageHeight] });
+  doc.setFillColor(14,15,17);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+  doc.addImage(imgData, 'JPEG', margin, margin, imgWidthMM, imgHeightMM);
+  return doc.output('blob');
+}
+function imageBlobFromCanvas(canvas){
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+}
+/* Genera un PDF de una página con la ficha (se mantiene por compatibilidad). */
+async function buildFichaPDFBlob(){
+  return pdfBlobFromCanvas(await captureFichaCanvas());
+}
+/* Usa la captura pre-generada al abrir la ficha si ya está lista; si no, la genera ahora. */
+async function getFichaCanvas(){
+  if(_fichaCache.n===currentExercise.n && _fichaCache.canvasPromise){
+    const cached = await _fichaCache.canvasPromise;
+    if(cached) return cached;
+  }
+  return await captureFichaCanvas();
+}
 
-function shareExercise(){
+/* Intenta compartir un archivo (PDF o imagen) con el panel nativo de compartir.
+   Devuelve 'sent', 'cancelled' (el usuario cerró el panel) o 'unsupported'/'failed'. */
+async function shareFile(blob, fileName, mime, shareTitle, shareText){
+  if(!(typeof File !== 'undefined' && navigator.share)) return 'unsupported';
+  const file = new File([blob], fileName, { type: mime });
+  if(navigator.canShare && !navigator.canShare({ files:[file] })) return 'unsupported';
+  try{
+    await navigator.share({ files:[file], title: shareTitle, text: shareText });
+    return 'sent';
+  }catch(err){
+    return (err && err.name==='AbortError') ? 'cancelled' : 'failed';
+  }
+}
+async function shareTextOnly(shareTitle, shareText){
+  if(!navigator.share) return 'unsupported';
+  try{
+    await navigator.share({ title: shareTitle, text: shareText });
+    return 'sent';
+  }catch(err){
+    return (err && err.name==='AbortError') ? 'cancelled' : 'failed';
+  }
+}
+
+async function shareExercise(){
   if(!currentExercise) return;
-  const text = buildShareText(currentExercise);
-  if(navigator.share){
-    navigator.share({ title: 'Ejercicio: '+currentExercise.title, text: text }).catch(()=>{});
-  } else {
-    navigator.clipboard.writeText(text).then(()=>{
-      showToast('Ficha copiada. Ya puedes pegarla donde quieras.');
-    }).catch(()=>{
-      showToast('No se pudo copiar automáticamente.');
-    });
+  const btn = document.getElementById('detail-share-btn');
+  const label = document.getElementById('detail-share-label');
+  const originalLabel = label ? label.textContent : '';
+  if(btn){ btn.disabled = true; btn.style.opacity = '0.6'; }
+  if(label){ label.textContent = 'Preparando…'; }
+  try{
+    const canvas = await getFichaCanvas();
+    const safeCode = ('EJ'+currentExercise.n).replace(/[^\w-]+/g,'_');
+    const shareTitle = 'Ejercicio: '+currentExercise.title;
+    const shareText = buildShareText(currentExercise);
+    const pdfBlob = pdfBlobFromCanvas(canvas);
+    const pdfName = `Ficha-${safeCode}.pdf`;
+
+    let result = await shareFile(pdfBlob, pdfName, 'application/pdf', shareTitle, shareText);
+    if(result==='unsupported' || result==='failed'){
+      const imgBlob = await imageBlobFromCanvas(canvas);
+      result = await shareFile(imgBlob, `Ficha-${safeCode}.jpg`, 'image/jpeg', shareTitle, shareText);
+    }
+    if(result==='unsupported' || result==='failed'){
+      result = await shareTextOnly(shareTitle, shareText);
+    }
+
+    if(result==='sent'){
+      showToast('Ficha enviada.');
+    } else if(result==='cancelled'){
+      /* el usuario ha cerrado el panel de compartir: no hacer nada */
+    } else {
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = pdfName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+      showToast('Este navegador no permite enviar archivos: ficha en PDF descargada.');
+    }
+  }catch(e){
+    console.error(e);
+    showToast('No se pudo generar la ficha para enviar.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.style.opacity = ''; }
+    if(label){ label.textContent = originalLabel || 'Enviar ficha'; }
   }
 }
 

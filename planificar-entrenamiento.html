@@ -79,8 +79,51 @@ body{
 }
 .session-date input[type=date]:focus-visible{outline:2px solid var(--amber);}
 
-/* ---------- Desplegable plantilla equipo A ---------- */
+/* ---------- Selector de categoría (Juvenil / Cadete) ---------- */
+.team-switch{display:flex;gap:4px;margin:6px 0 8px 0;}
+.team-switch-btn{
+  flex:1;background:var(--panel-2);border:1px solid var(--panel-border);color:var(--ink-dim);
+  font-family:'Inter',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:0.5px;text-transform:uppercase;
+  padding:7px 4px;border-radius:7px;cursor:pointer;
+}
+.team-switch-btn.active{background:var(--amber);border-color:var(--amber);color:#1a1300;}
+
+/* ---------- Modal: elegir equipo al guardar ---------- */
+.team-modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.team-modal-overlay.open{display:flex;}
+.team-modal{
+  background:var(--panel);border:1px solid var(--panel-border);border-radius:14px;
+  padding:22px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.55);
+  text-align:center;
+}
+.team-modal-title{font-family:'Inter',sans-serif;font-weight:800;font-size:15.5px;color:var(--ink);margin-bottom:6px;}
+.team-modal-sub{font-family:'Inter',sans-serif;font-size:12px;color:var(--ink-dim);margin-bottom:16px;}
+.team-modal-buttons{display:flex;gap:10px;margin-bottom:12px;}
+.team-modal-btn{
+  flex:1;background:var(--panel-2);border:2px solid var(--panel-border);color:var(--ink);
+  font-family:'Inter',sans-serif;font-weight:800;font-size:13px;letter-spacing:0.5px;
+  padding:14px 8px;border-radius:10px;cursor:pointer;
+}
+.team-modal-btn:hover{border-color:var(--amber);}
+.team-modal-btn.suggested{border-color:var(--amber);}
+.team-modal-cancel{
+  background:none;border:none;color:var(--ink-dim);font-family:'Inter',sans-serif;font-size:12px;
+  cursor:pointer;text-decoration:underline;padding:4px;
+}
+
+/* ---------- Pestañas Juvenil / Cadete + plantilla ---------- */
 .squad-wrap{position:relative;}
+.squad-tabs{display:flex;gap:4px;}
+.squad-tab{
+  flex:1;background:var(--panel-2);border:1px solid var(--panel-border);color:var(--ink-dim);
+  font-family:'Inter',sans-serif;font-weight:700;font-size:11px;letter-spacing:0.3px;
+  padding:8px 6px;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.squad-tab svg{width:14px;height:14px;stroke:currentColor;fill:none;flex:none;}
+.squad-tab.active{background:var(--amber);border-color:var(--amber);color:#1a1300;}
 .squad-toggle{width:100%;justify-content:space-between;}
 .squad-panel{
   position:absolute;top:calc(100% + 6px);left:0;
@@ -542,9 +585,14 @@ svg#pitch{
       <div class="tool-group-label">Jugadores</div>
       <div class="tool-grid">
         <div class="squad-wrap tool-full">
-          <button class="tool-btn tool-full squad-toggle" id="squadToggle">
-            <span><svg viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px;"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Equipo A ▾</span>
-          </button>
+          <div class="squad-tabs" id="squadTabs">
+            <button class="squad-tab" data-team="juvenil" id="squadTabJuvenil">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px;"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Juvenil
+            </button>
+            <button class="squad-tab" data-team="cadete" id="squadTabCadete">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;vertical-align:-2px;"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> Cadete
+            </button>
+          </div>
           <div class="squad-panel" id="squadPanel"></div>
         </div>
         <button class="tool-btn" id="addPlayerB">
@@ -657,6 +705,18 @@ svg#pitch{
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="team-modal-overlay" id="teamModalOverlay">
+  <div class="team-modal">
+    <div class="team-modal-title">¿En qué equipo guardamos este entrenamiento?</div>
+    <div class="team-modal-sub" id="teamModalSub"></div>
+    <div class="team-modal-buttons">
+      <button class="team-modal-btn" data-team="juvenil" id="teamModalJuvenil">JUVENIL</button>
+      <button class="team-modal-btn" data-team="cadete" id="teamModalCadete">CADETE</button>
+    </div>
+    <button class="team-modal-cancel" id="teamModalCancel">Cancelar</button>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -937,12 +997,74 @@ svg#pitch{
   let squadFieldId = {};       // playerId -> token id en el campo (players[])
   let benchSelectedId = null;  // id de plantilla "armado" en el banquillo, a la espera de intercambio
 
+  /* ---------------- Categoría (Juvenil / Cadete) ---------------- */
+  const TEAMS = { juvenil:'Juvenil', cadete:'Cadete' };
+  let currentTeam = (localStorage.getItem('pe:lastTeam')==='cadete') ? 'cadete' : 'juvenil';
+
+  function updateTeamSwitchUI(){
+    document.querySelectorAll('#squadTabs .squad-tab').forEach(b=>{
+      b.classList.toggle('active', b.dataset.team===currentTeam);
+    });
+  }
+  function setTeam(team, opts){
+    opts = opts || {};
+    currentTeam = (team==='cadete') ? 'cadete' : 'juvenil';
+    localStorage.setItem('pe:lastTeam', currentTeam);
+    updateTeamSwitchUI();
+    if(opts.reload!==false){
+      squadSelected = new Set();
+      loadSquad();
+    }
+  }
+  /* Pestañas Juvenil/Cadete: al elegir una pestaña se carga y despliega su plantilla;
+     tocar la pestaña ya activa abre/cierra el desplegable sin recargar. */
+  function selectSquadTab(team){
+    if(team !== currentTeam){
+      setTeam(team);
+      squadPanel.classList.add('open');
+    } else {
+      squadPanel.classList.toggle('open');
+    }
+  }
+  document.getElementById('squadTabJuvenil').addEventListener('click', (e)=>{ e.stopPropagation(); selectSquadTab('juvenil'); });
+  document.getElementById('squadTabCadete').addEventListener('click', (e)=>{ e.stopPropagation(); selectSquadTab('cadete'); });
+
+  /* Modal de confirmación de equipo al guardar. Resuelve con 'juvenil' | 'cadete' | null (cancelado) */
+  function openTeamModal(){
+    return new Promise((resolve)=>{
+      const overlay = document.getElementById('teamModalOverlay');
+      const sub = document.getElementById('teamModalSub');
+      const btnJ = document.getElementById('teamModalJuvenil');
+      const btnC = document.getElementById('teamModalCadete');
+      const btnCancel = document.getElementById('teamModalCancel');
+      sub.textContent = `Plantilla cargada ahora mismo: ${TEAMS[currentTeam]}`;
+      btnJ.classList.toggle('suggested', currentTeam==='juvenil');
+      btnC.classList.toggle('suggested', currentTeam==='cadete');
+      overlay.classList.add('open');
+      function cleanup(){
+        overlay.classList.remove('open');
+        btnJ.removeEventListener('click', onJ);
+        btnC.removeEventListener('click', onC);
+        btnCancel.removeEventListener('click', onCancel);
+        overlay.removeEventListener('click', onOverlay);
+      }
+      function onJ(){ cleanup(); resolve('juvenil'); }
+      function onC(){ cleanup(); resolve('cadete'); }
+      function onCancel(){ cleanup(); resolve(null); }
+      function onOverlay(e){ if(e.target===overlay){ cleanup(); resolve(null); } }
+      btnJ.addEventListener('click', onJ);
+      btnC.addEventListener('click', onC);
+      btnCancel.addEventListener('click', onCancel);
+      overlay.addEventListener('click', onOverlay);
+    });
+  }
+
   async function loadSquad(){
     const panel = document.getElementById('squadPanel');
     panel.innerHTML = '<div class="squad-panel-status">Cargando plantilla…</div>';
     try{
       const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const { data, error } = await sb.from('team_data').select('value').eq('key','players').maybeSingle();
+      const { data, error } = await sb.from('team_data').select('value').eq('key', currentTeam+':players').maybeSingle();
       if(error) throw error;
       squadPlayers = (data && data.value) || [];
     }catch(e){
@@ -1058,12 +1180,7 @@ svg#pitch{
     showToast(`${newP.name} entra por ${oldTokenObj.name||''}`);
   }
 
-  const squadToggle = document.getElementById('squadToggle');
   const squadPanel = document.getElementById('squadPanel');
-  squadToggle.addEventListener('click',(e)=>{
-    e.stopPropagation();
-    squadPanel.classList.toggle('open');
-  });
   document.addEventListener('click',(e)=>{
     if(!e.target.closest('.squad-wrap')) squadPanel.classList.remove('open');
   });
@@ -1395,12 +1512,16 @@ svg#pitch{
 
   /* ---------------- Guardar sesión (calendario Plantilla › Entrenos) ---------------- */
   async function saveSession(){
+    const team = await openTeamModal();
+    if(!team) return; // cancelado
+
     const btn = document.getElementById('btnSaveSession');
     btn.disabled = true;
     btn.textContent = '💾 Guardando…';
     try{
+      const key = team + ':training-sessions';
       const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      const { data, error: readErr } = await sb.from('team_data').select('value').eq('key','training-sessions').maybeSingle();
+      const { data, error: readErr } = await sb.from('team_data').select('value').eq('key', key).maybeSingle();
       if(readErr) throw readErr;
       const sesiones = (data && data.value) || [];
 
@@ -1417,10 +1538,12 @@ svg#pitch{
       const nueva = { id: Date.now(), titulo, fecha, objetivo: comentario, comentario, convocados, board };
       sesiones.push(nueva);
 
-      const { error: writeErr } = await sb.from('team_data').upsert({ key:'training-sessions', value: sesiones, updated_at: new Date().toISOString() });
+      const { error: writeErr } = await sb.from('team_data').upsert({ key, value: sesiones, updated_at: new Date().toISOString() });
       if(writeErr) throw writeErr;
 
-      showToast('Guardado en el calendario de Plantilla › Entrenos');
+      if(team !== currentTeam) setTeam(team);
+
+      showToast(`Guardado en el calendario de ${TEAMS[team]} › Entrenos`);
     }catch(e){
       showToast('No se pudo guardar. Revisa la conexión.');
     }finally{
@@ -1436,6 +1559,7 @@ svg#pitch{
   ball = {x:VB.w/2,y:VB.h/2};
   renderAllTokens();
   saveFrame();
+  setTeam(currentTeam, {reload:false});
   loadSquad();
 
 })();
