@@ -85,10 +85,14 @@
 
   .credit-footer{
     position:fixed;left:0;right:0;bottom:0;
-    text-align:center;padding:9px 0 11px 0;
-    font-size:10.5px;color:rgba(255,255,255,0.28);letter-spacing:0.4px;
+    text-align:center;
+    padding:6px 0 calc(6px + env(safe-area-inset-bottom, 0px)) 0;
     pointer-events:none;z-index:60;
-    background:linear-gradient(0deg, rgba(14,15,17,0.9) 30%, transparent);
+  }
+  .credit-footer span{
+    display:inline-block;
+    color:rgba(255,255,255,0.32);
+    font-size:10.5px;letter-spacing:0.4px;
   }
 </style>
 </head>
@@ -158,7 +162,7 @@
     </div>
 
     </div>
-  <div class="credit-footer">By Urtzi Martínez</div>
+  <div class="credit-footer"><span>By Urtzi Martínez</span></div>
 </div>
 </body>
 </html>
