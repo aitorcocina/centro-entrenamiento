@@ -313,6 +313,23 @@
   .status-pill.status-no_convocado.active{background:rgba(255,255,255,0.1); color:var(--line); border-color:var(--line-faint);}
   .status-pill.status-lesionado.active{background:rgba(227,30,36,0.18); color:#ff6b62; border-color:rgba(227,30,36,0.5);}
   .status-pill.status-sancionado.active{background:rgba(255,177,0,0.18); color:var(--oro); border-color:rgba(255,177,0,0.5);}
+  /* Contadores de estado (partidos) */
+  .status-counter{cursor:default; padding:7px 4px 8px;}
+  .status-counter .stat-controls{margin-top:5px;}
+  .status-counter .stat-value{font-size:15px;}
+  .status-counter.status-titular{color:var(--verde); background:rgba(31,168,92,0.12);}
+  .status-counter.status-suplente{color:var(--azul); background:rgba(46,111,234,0.12);}
+  .status-counter.status-no_convocado{color:var(--line-dim);}
+  .status-counter.status-lesionado{color:#ff6b62; background:rgba(227,30,36,0.12);}
+  .status-counter.status-sancionado{color:var(--oro); background:rgba(255,177,0,0.12);}
+  .status-counter.status-jugados{color:var(--line); background:rgba(255,255,255,0.08); border-color:var(--line-faint);}
+  .status-counter.status-jugados .stat-value{font-size:18px; font-weight:700;}
+  .pj-badge{
+    margin-left:auto; text-align:center; font-family:'JetBrains Mono',monospace; color:var(--line);
+    background:rgba(255,255,255,0.06); border:1px solid var(--line-faint); border-radius:10px; padding:5px 10px;
+  }
+  .pj-badge b{display:block; font-size:18px; line-height:1.1;}
+  .pj-badge span{font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--line-dim);}
 
   .share-actions{display:flex; gap:10px; justify-content:center; padding:14px 24px 0; flex-wrap:wrap;}
   .share-btn{
@@ -1035,7 +1052,12 @@
   function getStat(id){
     if(!stats[id]) stats[id] = {goals:0, yellow:0, red:0, status:'no_convocado'};
     if(stats[id].status === undefined) stats[id].status = 'no_convocado';
+    if(!stats[id].counts) stats[id].counts = {};
+    STATUS_OPTS.forEach(o=>{ if(typeof stats[id].counts[o.key] !== 'number') stats[id].counts[o.key] = 0; });
     return stats[id];
+  }
+  function playedCount(s){
+    return (s.counts.titular||0) + (s.counts.suplente||0);
   }
 
   function renderStats(){
@@ -1055,6 +1077,7 @@
           <div class="player-info">
             <p class="player-name" style="font-size:15px;">${p.number ? `<span class="player-num">${escapeHtml(p.number)}</span>` : ''}${escapeHtml(p.name)}</p>
           </div>
+          <div class="pj-badge"><b>${playedCount(s)}</b><span>Jugados</span></div>
         </div>
         <div class="stat-row">
           <div class="stat-box goals">
@@ -1084,29 +1107,35 @@
         </div>
         <div class="status-row">
           ${STATUS_OPTS.map(opt => `
-            <div class="status-pill status-${opt.key}${s.status===opt.key?' active':''}" data-status="${opt.key}">${opt.label}</div>
+            <div class="status-pill status-counter status-${opt.key}">
+              <div>${opt.label}</div>
+              <div class="stat-controls">
+                <button class="stat-btn" data-count="${opt.key}" data-delta="-1">–</button>
+                <span class="stat-value">${s.counts[opt.key]}</span>
+                <button class="stat-btn" data-count="${opt.key}" data-delta="1">+</button>
+              </div>
+            </div>
           `).join('')}
+            <div class="status-pill status-counter status-jugados">
+              <div>Total partidos</div>
+              <div class="stat-controls"><span class="stat-value">${STATUS_OPTS.reduce((t,o)=>t+s.counts[o.key],0)}</span></div>
+            </div>
         </div>
       </div>`;
     }).join('');
 
-    list.querySelectorAll('.status-pill').forEach(pill=>{
-      pill.addEventListener('click', async ()=>{
-        const id = pill.closest('.stat-card').dataset.id;
-        const status = pill.dataset.status;
-        getStat(id).status = status;
-        renderStats();
-        await saveStats();
-      });
-    });
-
     list.querySelectorAll('.stat-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         const id = btn.closest('.stat-card').dataset.id;
-        const type = btn.dataset.type;
         const delta = parseInt(btn.dataset.delta);
         const s = getStat(id);
-        s[type] = Math.max(0, s[type] + delta);
+        if(btn.dataset.count){
+          const k = btn.dataset.count;
+          s.counts[k] = Math.max(0, s.counts[k] + delta);
+        } else {
+          const type = btn.dataset.type;
+          s[type] = Math.max(0, s[type] + delta);
+        }
         renderStats();
         await saveStats();
       });
